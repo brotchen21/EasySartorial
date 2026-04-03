@@ -1,7 +1,7 @@
 package com.brotchen21.easysatorial.core.scoring
 
-import com.brotchen21.easysatorial.domain.model.Garment
-import com.brotchen21.easysatorial.domain.model.OutfitValidationResult
+import com.brotchen21.easysatorial.domain.model.*
+import kotlin.math.abs
 
 class ScoringEngine {
 
@@ -9,7 +9,7 @@ class ScoringEngine {
         jacket: Garment,
         shirt: Garment,
         trousers: Garment,
-        shoes: Garment,
+        shoes: Garment?,
         belt: Garment?,
         socks: Garment?,
         tie: Garment?,
@@ -17,107 +17,168 @@ class ScoringEngine {
         hat: Garment?
     ): OutfitValidationResult {
         val feedback = mutableListOf<String>()
-        
-        val colorScore = calculateColorScore(jacket, shirt, trousers, shoes, belt, socks, feedback)
-        val patternScore = calculatePatternScore(jacket, shirt, trousers, tie, feedback)
-        val formalityScore = calculateFormalityScore(jacket, shirt, trousers, shoes, tie, feedback)
-        
-        val totalScore = (colorScore * ScoringConstants.COLOR_HARMONY_WEIGHT) +
-                (patternScore * ScoringConstants.PATTERN_BALANCE_WEIGHT) +
-                (formalityScore * ScoringConstants.FORMALITY_MATCH_WEIGHT)
-                
+        var totalScore = 0f
+
+        // 1. Foundation Rule (Jacket + Trousers)
+        val foundationScore = calculateFoundationScore(jacket, trousers, feedback)
+        totalScore += foundationScore
+
+        // 2. Shirt Contrast Rule
+        val shirtContrastScore = calculateShirtContrastScore(jacket, shirt, feedback)
+        totalScore += shirtContrastScore
+
+        // 3. Tie Harmony Rule
+        if (tie != null) {
+            totalScore += calculateTieHarmonyScore(jacket, shirt, tie, feedback)
+        }
+
+        // 4. Color Balance Rule (Using DB 'isBold' field)
+        totalScore += calculateColorBalanceScore(listOfNotNull(jacket, shirt, trousers, tie, waistcoat, hat), feedback)
+
+        // 5. Temperature Rule
+        totalScore += calculateTemperatureScore(listOfNotNull(jacket, shirt, trousers, tie, shoes), feedback)
+
+        // 6. Pattern + Color Interaction
+        val patternScore = calculatePatternColorInteraction(jacket, shirt, trousers, tie, feedback)
+        totalScore += patternScore
+
+        // 7. Accessory Match (Shoe & Belt)
+        if (belt != null && shoes != null) {
+            totalScore += calculateAccessoryMatchScore(shoes, belt, feedback)
+        } else if (belt != null) {
+            feedback.add("Note: Wear matching shoes with your belt.")
+        }
+
+        // Final score normalization (assuming base score starts at 0, max is 10)
+        val finalScore = (5f + totalScore).coerceIn(0f, 10f)
+
         return OutfitValidationResult(
-            score = totalScore,
-            colorScore = colorScore,
-            patternScore = patternScore,
-            formalityScore = formalityScore,
+            score = finalScore,
+            colorScore = (5f + totalScore - patternScore).coerceIn(0f, 10f),
+            patternScore = (5f + patternScore).coerceIn(0f, 10f),
             feedback = feedback
         )
     }
 
-    private fun calculateColorScore(
-        jacket: Garment,
-        shirt: Garment,
-        trousers: Garment,
-        shoes: Garment,
-        belt: Garment?,
-        socks: Garment?,
-        feedback: MutableList<String>
-    ): Float {
-        var score = 10.0f
-        
-        // Belt-Shoe match rule
-        if (belt != null) {
-            if (belt.baseColor != shoes.baseColor) {
-                score -= 2.0f
-                feedback.add("Belt color (${belt.baseColor}) does not match shoe color (${shoes.baseColor}).")
-            } else {
-                feedback.add("Belt correctly matches shoe color.")
+    private fun calculateFoundationScore(jacket: Garment, trousers: Garment, feedback: MutableList<String>): Float {
+        val j = jacket.colorProfile
+        val t = trousers.colorProfile
+
+        return when {
+            j.base == t.base -> {
+                feedback.add("Perfect foundation: Matching jacket and trousers.")
+                2.0f
+            }
+            j.base.isNeutral && t.base.isNeutral -> {
+                feedback.add("Solid foundation: Coordinating neutral tones.")
+                1.5f
+            }
+            else -> {
+                feedback.add("Warning: Jacket and trousers have low color compatibility.")
+                -0.5f
             }
         }
-        
-        // Sock rules
-        if (socks != null) {
-            val matchesTrousers = socks.baseColor == trousers.baseColor
-            val matchesShoes = socks.baseColor == shoes.baseColor
-            if (!matchesTrousers && !matchesShoes) {
-                score -= 1.0f
-                feedback.add("Socks do not coordinate with trousers or shoes.")
-            } else {
-                feedback.add("Socks coordinate well with the outfit.")
-            }
-        }
-        
-        return score.coerceIn(0f, 10f)
     }
 
-    private fun calculatePatternScore(
-        jacket: Garment,
-        shirt: Garment,
-        trousers: Garment,
-        tie: Garment?,
-        feedback: MutableList<String>
-    ): Float {
-        var score = 10.0f
-        
-        // Simple pattern clash detection (e.g., multiple large patterns)
-        val patterns = listOfNotNull(jacket, shirt, trousers, tie)
-        val largePatterns = patterns.filter { it.patternScale >= 3 }
-        
-        if (largePatterns.size > 1) {
-            score -= 3.0f
-            feedback.add("Multiple large-scale patterns can be visually overwhelming.")
-        } else if (largePatterns.size == 1) {
-            feedback.add("Large pattern in ${largePatterns[0].name} is well balanced.")
+    private fun calculateShirtContrastScore(jacket: Garment, shirt: Garment, feedback: MutableList<String>): Float {
+        val jTone = jacket.colorProfile.tone
+        val sTone = shirt.colorProfile.tone
+
+        return when {
+            sTone == ColorTone.LIGHT && jTone == ColorTone.DARK -> {
+                feedback.add("Ideal contrast: Light shirt with a dark jacket.")
+                2.0f
+            }
+            sTone == ColorTone.DARK && jTone == ColorTone.DARK -> {
+                feedback.add("Poor contrast: Dark shirt under a dark jacket lacks definition.")
+                -1.0f
+            }
+            else -> 1.0f
         }
-        
-        return score.coerceIn(0f, 10f)
     }
 
-    private fun calculateFormalityScore(
-        jacket: Garment,
-        shirt: Garment,
-        trousers: Garment,
-        shoes: Garment,
-        tie: Garment?,
-        feedback: MutableList<String>
-    ): Float {
-        val items = listOfNotNull(jacket, shirt, trousers, shoes, tie)
-        val avgFormality = items.map { it.formalityLevel }.average().toFloat()
+    private fun calculateTieHarmonyScore(jacket: Garment, shirt: Garment, tie: Garment, feedback: MutableList<String>): Float {
+        val tBase = tie.colorProfile.base
+        val jBase = jacket.colorProfile.base
         
-        var penalty = 0.0f
-        items.forEach { item ->
-            val diff = kotlin.math.abs(item.formalityLevel - avgFormality)
-            if (diff > 1.5) {
-                penalty += 2.0f
-                feedback.add("${item.name} is significantly more/less formal than the rest of the outfit.")
+        val relatesToJacket = tBase == jBase || tie.colorFamily == jacket.colorFamily
+        val relatesToShirt = tie.colorProfile.temperature != shirt.colorProfile.temperature // Simple complementary logic
+
+        return when {
+            relatesToJacket -> {
+                feedback.add("Tie harmony: Tie color relates well to the jacket.")
+                1.5f
+            }
+            relatesToShirt -> {
+                feedback.add("Tie harmony: Tie provides a nice contrast to the shirt.")
+                1.0f
+            }
+            else -> {
+                feedback.add("Penalty: Tie clashes with both jacket and shirt.")
+                -1.0f
             }
         }
+    }
+
+    private fun calculateColorBalanceScore(items: List<Garment>, feedback: MutableList<String>): Float {
+        // Now using the explicit 'isBold' field from your database
+        val boldItems = items.filter { it.isBold }
         
-        if (penalty == 0f) {
-            feedback.add("Excellent formality consistency.")
+        return when {
+            boldItems.size > 1 -> {
+                feedback.add("Penalty: Too many bold colors (${boldItems.joinToString { it.name }}). Limit to one focus piece.")
+                -1.5f
+            }
+            boldItems.size == 1 -> {
+                feedback.add("Good balance: Single bold ${boldItems[0].name} supported by neutrals.")
+                1.5f
+            }
+            else -> 1.0f
         }
+    }
+
+    private fun calculateTemperatureScore(items: List<Garment>, feedback: MutableList<String>): Float {
+        val temps = items.map { it.colorProfile.temperature }.filter { it != ColorTemperature.NEUTRAL }
+        val hasWarm = temps.contains(ColorTemperature.WARM)
+        val hasCool = temps.contains(ColorTemperature.COOL)
+
+        return if (hasWarm && hasCool) {
+            feedback.add("Penalty: Clashing temperatures between warm and cool items.")
+            -1.0f
+        } else {
+            1.0f
+        }
+    }
+
+    private fun calculatePatternColorInteraction(jacket: Garment, shirt: Garment, trousers: Garment, tie: Garment?, feedback: MutableList<String>): Float {
+        val items = listOfNotNull(jacket, shirt, trousers, tie)
+        val loudPatterns = items.filter { it.patternScale >= 3 }
         
-        return (10.0f - penalty).coerceIn(0f, 10f)
+        return when {
+            loudPatterns.size > 1 -> {
+                feedback.add("Penalty: Multiple loud patterns compete for attention.")
+                -2.0f
+            }
+            loudPatterns.size == 1 -> {
+                val othersAreNeutral = items.filter { it != loudPatterns[0] }.all { it.colorProfile.base.isNeutral }
+                if (othersAreNeutral) {
+                    feedback.add("Pattern balance: Loud ${loudPatterns[0].name} is correctly supported by neutrals.")
+                    1.5f
+                } else {
+                    0.5f
+                }
+            }
+            else -> 1.0f
+        }
+    }
+
+    private fun calculateAccessoryMatchScore(shoes: Garment, belt: Garment, feedback: MutableList<String>): Float {
+        return if (shoes.colorProfile.base == belt.colorProfile.base) {
+            feedback.add("Accessory match: Belt and shoes are correctly coordinated.")
+            1.0f
+        } else {
+            feedback.add("Penalty: Belt and shoes should match in base color.")
+            -1.0f
+        }
     }
 }

@@ -95,7 +95,7 @@ fun PatternCard(pattern: Pattern) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = pattern.description,
+                text = "Type: ${pattern.patternType}",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -103,13 +103,13 @@ fun PatternCard(pattern: Pattern) {
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Coordination Advice:",
+                text = "Details:",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.secondary,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = pattern.coordinationAdvice,
+                text = "Scale: ${pattern.scale} | Contrast: ${pattern.contrast}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

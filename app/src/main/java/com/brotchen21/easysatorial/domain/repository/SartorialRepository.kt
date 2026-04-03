@@ -10,6 +10,6 @@ interface SartorialRepository {
     suspend fun getGarmentTypes(): List<GarmentType>
     suspend fun getGarments(typeId: Int): List<Garment>
     suspend fun getPatterns(): List<Pattern>
-    suspend fun generateOutfit(formality: Int): Outfit
+    suspend fun generateOutfit(): Outfit
     suspend fun validateOutfit(outfit: Outfit): OutfitValidationResult
 }

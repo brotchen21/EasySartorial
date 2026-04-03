@@ -41,8 +41,8 @@ fun OutfitStatusCard(result: OutfitValidationResult) {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.secondary
             )
-            Text(text = String.format(Locale.getDefault(), "Color: %.1f | Pattern: %.1f | Formality: %.1f", 
-                result.colorScore, result.patternScore, result.formalityScore),
+            Text(text = String.format(Locale.getDefault(), "Color: %.1f | Pattern: %.1f", 
+                result.colorScore, result.patternScore),
                 style = MaterialTheme.typography.bodySmall
             )
             Spacer(modifier = Modifier.height(8.dp))

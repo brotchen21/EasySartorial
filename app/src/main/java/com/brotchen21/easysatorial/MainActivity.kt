@@ -1,12 +1,14 @@
 package com.brotchen21.easysatorial
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
@@ -50,6 +52,20 @@ class MainActivity : ComponentActivity() {
                 }
                 val randomGeneratorViewModel = remember {
                     RandomGeneratorViewModel(generateOutfitUseCase, validateOutfitUseCase)
+                }
+
+                // Supabase Connection Health Check
+                LaunchedEffect(Unit) {
+                    try {
+                        val types = repository.getGarmentTypes()
+                        if (types.isNotEmpty()) {
+                            Log.d("SupabaseTest", "Successfully read ${types.size} garment types from DB!")
+                        } else {
+                            Log.d("SupabaseTest", "Connected to DB, but 'garment_types' table is empty.")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("SupabaseTest", "Failed to read from DB: ${e.message}")
+                    }
                 }
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
