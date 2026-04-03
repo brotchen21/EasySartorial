@@ -4,7 +4,7 @@ data class Outfit(
     val jacketId: Int,
     val shirtId: Int,
     val trousersId: Int,
-    val shoesId: Int,
+    val shoesId: Int? = null,
     val hatId: Int? = null,
     val waistcoatId: Int? = null,
     val tieId: Int? = null,
@@ -16,6 +16,5 @@ data class OutfitValidationResult(
     val score: Float,
     val colorScore: Float,
     val patternScore: Float,
-    val formalityScore: Float,
     val feedback: List<String>
 )

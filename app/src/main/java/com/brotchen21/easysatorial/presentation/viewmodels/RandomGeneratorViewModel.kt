@@ -20,14 +20,10 @@ class RandomGeneratorViewModel(
     private val _uiState = MutableStateFlow(RandomGeneratorUiState())
     val uiState: StateFlow<RandomGeneratorUiState> = _uiState.asStateFlow()
 
-    fun setFormality(level: Int) {
-        _uiState.update { it.copy(selectedFormality = level) }
-    }
-
     fun generateOutfit() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val outfit = generateOutfitUseCase(_uiState.value.selectedFormality)
+            val outfit = generateOutfitUseCase()
             val validation = validateOutfitUseCase(outfit)
             _uiState.update { 
                 it.copy(
@@ -41,7 +37,6 @@ class RandomGeneratorViewModel(
 }
 
 data class RandomGeneratorUiState(
-    val selectedFormality: Int = 3,
     val currentOutfit: Outfit? = null,
     val validationResult: OutfitValidationResult? = null,
     val isLoading: Boolean = false

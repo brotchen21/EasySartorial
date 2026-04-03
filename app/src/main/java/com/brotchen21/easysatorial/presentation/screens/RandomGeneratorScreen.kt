@@ -10,8 +10,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.brotchen21.easysatorial.presentation.components.OutfitStatusCard
 import com.brotchen21.easysatorial.presentation.viewmodels.RandomGeneratorViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,40 +43,26 @@ fun RandomGeneratorScreen(
                 .padding(padding)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "Select Formality Level",
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Slider(
-                value = uiState.selectedFormality.toFloat(),
-                onValueChange = { viewModel.setFormality(it.toInt()) },
-                valueRange = 1f..4f,
-                steps = 2
-            )
-            
-            Text(
-                text = when(uiState.selectedFormality) {
-                    1 -> "Casual"
-                    2 -> "Smart Casual"
-                    3 -> "Business"
-                    4 -> "Formal"
-                    else -> ""
-                },
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
+                text = "Generate a classically coordinated outfit based on 1930s-1940s tailoring rules.",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(bottom = 32.dp)
             )
 
             Button(
                 onClick = { viewModel.generateOutfit() },
-                modifier = Modifier.fillMaxWidth().height(56.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
             ) {
                 Icon(Icons.Default.AutoAwesome, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Generate Random Outfit")
+                Text("Generate Outfit")
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             if (uiState.isLoading) {
                 CircularProgressIndicator()

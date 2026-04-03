@@ -1,74 +1,144 @@
 package com.brotchen21.easysatorial.data.repository
 
+import android.util.Log
 import com.brotchen21.easysatorial.core.scoring.ScoringEngine
+import com.brotchen21.easysatorial.data.mapper.toDomain
+import com.brotchen21.easysatorial.data.remote.SupabaseClientProvider
+import com.brotchen21.easysatorial.data.remote.dto.GarmentDto
+import com.brotchen21.easysatorial.data.remote.dto.GarmentTypeDto
+import com.brotchen21.easysatorial.data.remote.dto.PatternDto
 import com.brotchen21.easysatorial.domain.model.*
 import com.brotchen21.easysatorial.domain.repository.SartorialRepository
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.storage.storage
 
 class SartorialRepositoryImpl(private val scoringEngine: ScoringEngine) : SartorialRepository {
-    private val mockGarments = listOf(
-        Garment(1, "Navy Blazer", 1, "Navy", null, ColorFamily.COOL, 0, 0, 0, "Solid", 3, "Business", "all-season", "medium", ""),
-        Garment(2, "Grey Flannel Trousers", 4, "Grey", null, ColorFamily.NEUTRAL, 0, 0, 0, "Solid", 3, "Business", "winter", "heavy", ""),
-        Garment(3, "White Poplin Shirt", 3, "White", null, ColorFamily.NEUTRAL, 0, 0, 0, "Solid", 3, "Business", "all-season", "light", ""),
-        Garment(4, "Brown Oxford Shoes", 7, "Brown", null, ColorFamily.EARTH, 0, 0, 0, "Solid", 3, "Business", "all-season", "medium", ""),
-        Garment(5, "Brown Leather Belt", 6, "Brown", null, ColorFamily.EARTH, 0, 0, 0, "Solid", 3, "Business", "all-season", "medium", ""),
-        Garment(6, "Blue Silk Tie", 5, "Blue", null, ColorFamily.COOL, 0, 0, 0, "Solid", 4, "Formal", "all-season", "light", ""),
-        Garment(7, "Navy Cotton Socks", 8, "Navy", null, ColorFamily.COOL, 0, 0, 0, "Solid", 2, "Smart Casual", "all-season", "light", "")
-    )
+    
+    private val client = SupabaseClientProvider.client
+    private val bucket = client.storage["garments"]
 
     override suspend fun getGarmentTypes(): List<GarmentType> {
-        return listOf(
-            GarmentType(1, "Jacket"),
-            GarmentType(2, "Waistcoat"),
-            GarmentType(3, "Shirt"),
-            GarmentType(4, "Trousers"),
-            GarmentType(5, "Tie"),
-            GarmentType(6, "Belt"),
-            GarmentType(7, "Shoes"),
-            GarmentType(8, "Socks"),
-            GarmentType(9, "Hat")
-        )
+        return try {
+            val response = client.postgrest["garment_types"].select().decodeList<GarmentTypeDto>()
+            Log.d("SartorialRepo", "Fetched ${response.size} garment types")
+            response.map { it.toDomain() }
+        } catch (e: Exception) {
+            Log.e("SartorialRepo", "Error fetching garment types: ${e.message}", e)
+            throw e
+        }
     }
 
     override suspend fun getGarments(typeId: Int): List<Garment> {
-        return mockGarments.filter { it.garmentTypeId == typeId }
+        return try {
+            val response = client.postgrest["garments"].select {
+                filter {
+                    eq("garment_type_id", typeId)
+                }
+            }.decodeList<GarmentDto>()
+            
+            Log.d("SartorialRepo", "Fetched ${response.size} garments for type $typeId")
+            
+            response.map { dto ->
+                dto.copy(
+                    baseUrl = dto.baseUrl?.let { bucket.publicUrl(it) },
+                    shadingUrl = dto.shadingUrl?.let { bucket.publicUrl(it) },
+                    patternOverlayUrl = dto.patternOverlayUrl?.let { bucket.publicUrl(it) }
+                ).toDomain()
+            }
+        } catch (e: Exception) {
+            Log.e("SartorialRepo", "Error fetching garments for type $typeId: ${e.message}", e)
+            emptyList()
+        }
     }
 
     override suspend fun getPatterns(): List<Pattern> {
-        return listOf(
-            Pattern(1, "Pinstripe", "Vertical lines, typically thin and evenly spaced.", "Pair with solid shirts or larger scale patterns like Glen Check."),
-            Pattern(2, "Glen Check", "A woolen fabric with a design of small and large checks.", "Pairs well with solid ties or simple stripes."),
-            Pattern(3, "Herringbone", "A V-shaped weaving pattern.", "Very versatile; works with almost any other pattern."),
-            Pattern(4, "Houndstooth", "Broken checks or four-pointed shapes.", "Keep other patterns simple to avoid visual clutter."),
-            Pattern(5, "Windowpane", "Large, thin-lined checks.", "Contrasts beautifully with small-scale patterns like micro-checks.")
-        )
+        return try {
+            client.postgrest["patterns"].select().decodeList<PatternDto>().map { it.toDomain() }
+        } catch (e: Exception) {
+            Log.e("SartorialRepo", "Error fetching patterns: ${e.message}", e)
+            emptyList()
+        }
     }
 
-    override suspend fun generateOutfit(formality: Int): Outfit {
-        // Return a basic valid outfit matching the formality
+    override suspend fun generateOutfit(): Outfit {
+        val allGarments = try {
+            client.postgrest["garments"].select().decodeList<GarmentDto>().map { dto ->
+                dto.copy(
+                    baseUrl = dto.baseUrl?.let { bucket.publicUrl(it) },
+                    shadingUrl = dto.shadingUrl?.let { bucket.publicUrl(it) },
+                    patternOverlayUrl = dto.patternOverlayUrl?.let { bucket.publicUrl(it) }
+                ).toDomain()
+            }
+        } catch (e: Exception) {
+            return Outfit(0, 0, 0, 0)
+        }
+
+        val jackets = allGarments.filter { it.garmentTypeId == 1 }
+        val shirts = allGarments.filter { it.garmentTypeId == 3 }
+        val trousers = allGarments.filter { it.garmentTypeId == 4 }
+        val ties = allGarments.filter { it.garmentTypeId == 5 }
+        val shoes = allGarments.filter { it.garmentTypeId == 7 }
+
+        if (jackets.isEmpty() || shirts.isEmpty() || trousers.isEmpty()) {
+            return Outfit(0, 0, 0, 0)
+        }
+
+        val jacket = jackets.random()
+        val bestTrouser = trousers.maxByOrNull { t -> 
+            scoringEngine.calculateScore(jacket, shirts.firstOrNull() ?: jacket, t, null, null, null, null, null, null).score
+        } ?: trousers.random()
+
+        val bestShirt = shirts.maxByOrNull { s ->
+            scoringEngine.calculateScore(jacket, s, bestTrouser, null, null, null, null, null, null).score
+        } ?: shirts.random()
+
+        val bestTie = ties.maxByOrNull { tie ->
+            scoringEngine.calculateScore(jacket, bestShirt, bestTrouser, null, null, null, tie, null, null).score
+        }
+
         return Outfit(
-            jacketId = 1,
-            shirtId = 3,
-            trousersId = 2,
-            shoesId = 4,
-            beltId = 5,
-            tieId = 6,
-            sockId = 7
+            jacketId = jacket.id,
+            shirtId = bestShirt.id,
+            trousersId = bestTrouser.id,
+            shoesId = shoes.firstOrNull()?.id,
+            tieId = bestTie?.id
         )
     }
 
     override suspend fun validateOutfit(outfit: Outfit): OutfitValidationResult {
-        val jacket = mockGarments.find { it.id == outfit.jacketId } ?: mockGarments[0]
-        val shirt = mockGarments.find { it.id == outfit.shirtId } ?: mockGarments[2]
-        val trousers = mockGarments.find { it.id == outfit.trousersId } ?: mockGarments[1]
-        val shoes = mockGarments.find { it.id == outfit.shoesId } ?: mockGarments[3]
-        val belt = mockGarments.find { it.id == outfit.beltId }
-        val socks = mockGarments.find { it.id == outfit.sockId }
-        val tie = mockGarments.find { it.id == outfit.tieId }
-        val waistcoat = mockGarments.find { it.id == outfit.waistcoatId }
-        val hat = mockGarments.find { it.id == outfit.hatId }
+        val jacket = fetchGarment(outfit.jacketId) ?: return OutfitValidationResult(0f, 0f, 0f, listOf("Missing jacket"))
+        val shirt = fetchGarment(outfit.shirtId) ?: return OutfitValidationResult(0f, 0f, 0f, listOf("Missing shirt"))
+        val trousers = fetchGarment(outfit.trousersId) ?: return OutfitValidationResult(0f, 0f, 0f, listOf("Missing trousers"))
+        val shoes = fetchGarment(outfit.shoesId)
+        
+        val belt = fetchGarment(outfit.beltId)
+        val socks = fetchGarment(outfit.sockId)
+        val tie = fetchGarment(outfit.tieId)
+        val waistcoat = fetchGarment(outfit.waistcoatId)
+        val hat = fetchGarment(outfit.hatId)
 
         return scoringEngine.calculateScore(
             jacket, shirt, trousers, shoes, belt, socks, tie, waistcoat, hat
         )
+    }
+
+    private suspend fun fetchGarment(id: Int?): Garment? {
+        if (id == null || id == 0) return null
+        return try {
+            client.postgrest["garments"].select {
+                filter {
+                    eq("id", id)
+                }
+            }.decodeSingleOrNull<GarmentDto>()?.let { dto ->
+                dto.copy(
+                    baseUrl = dto.baseUrl?.let { bucket.publicUrl(it) },
+                    shadingUrl = dto.shadingUrl?.let { bucket.publicUrl(it) },
+                    patternOverlayUrl = dto.patternOverlayUrl?.let { bucket.publicUrl(it) }
+                ).toDomain()
+            }
+        } catch (e: Exception) {
+            Log.e("SartorialRepo", "Error fetching garment $id: ${e.message}")
+            null
+        }
     }
 }
