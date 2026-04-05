@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.brotchen21.easysatorial.presentation.components.OutfitStatusCard
+import com.brotchen21.easysatorial.presentation.components.SartorialMannequin
 import com.brotchen21.easysatorial.presentation.viewmodels.RandomGeneratorViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,20 +42,33 @@ fun RandomGeneratorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .padding(horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "Generate a classically coordinated outfit based on 1930s-1940s tailoring rules.",
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(bottom = 32.dp)
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+
+            // MANNEQUIN AREA for Random Generator
+            SartorialMannequin(
+                modifier = Modifier.weight(1f),
+                shirt = uiState.currentOutfitGarments?.get(3),
+                tie = uiState.currentOutfitGarments?.get(5),
+                trousers = uiState.currentOutfitGarments?.get(4),
+                jacket = uiState.currentOutfitGarments?.get(1),
+                waistcoat = uiState.currentOutfitGarments?.get(2),
+                hat = uiState.currentOutfitGarments?.get(9),
+                shoes = uiState.currentOutfitGarments?.get(7),
+                isJacketVisible = true
             )
 
             Button(
                 onClick = { viewModel.generateOutfit() },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(vertical = 16.dp)
                     .height(56.dp)
             ) {
                 Icon(Icons.Default.AutoAwesome, contentDescription = null)
@@ -62,10 +76,8 @@ fun RandomGeneratorScreen(
                 Text("Generate Outfit")
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
-
             if (uiState.isLoading) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(modifier = Modifier.padding(bottom = 16.dp))
             } else if (uiState.currentOutfit != null) {
                 uiState.validationResult?.let { result ->
                     OutfitStatusCard(result)

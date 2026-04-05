@@ -36,7 +36,22 @@ class OutfitBuilderViewModel(
                 Log.d("OutfitBuilderVM", "Loading garment types...")
                 val types = getGarmentTypesUseCase()
                 Log.d("OutfitBuilderVM", "Loaded ${types.size} types")
-                _uiState.update { it.copy(garmentTypes = types, isLoadingGarments = false) }
+                
+                val defaultGarments = mutableMapOf<Int, Garment>()
+                
+                // Pre-populate with first available garment of each type
+                types.forEach { type ->
+                    val garments = getGarmentsUseCase(type.id)
+                    if (garments.isNotEmpty()) {
+                        defaultGarments[type.id] = garments[0]
+                    }
+                }
+
+                _uiState.update { it.copy(
+                    garmentTypes = types, 
+                    selectedGarments = defaultGarments,
+                    isLoadingGarments = false 
+                ) }
                 
                 if (types.isNotEmpty()) {
                     selectGarmentType(types[0])

@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
                     OutfitBuilderViewModel(getGarmentTypesUseCase, getGarmentsUseCase, validateOutfitUseCase) 
                 }
                 val randomGeneratorViewModel = remember {
-                    RandomGeneratorViewModel(generateOutfitUseCase, validateOutfitUseCase)
+                    RandomGeneratorViewModel(generateOutfitUseCase, getGarmentsUseCase, validateOutfitUseCase)
                 }
 
                 // Supabase Connection Health Check
