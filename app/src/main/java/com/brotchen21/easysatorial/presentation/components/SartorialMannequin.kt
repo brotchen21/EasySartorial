@@ -24,52 +24,55 @@ fun SartorialMannequin(
     shoes: Garment? = null,
     isJacketVisible: Boolean = true
 ) {
-    Box(
+    // Spread-out collage layout to avoid messy overlaps with current assets
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        contentAlignment = Alignment.Center
+            .padding(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Left Column: Jacket & Shoes
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.height(350.dp)
-            ) {
-                // Main Torso Area
-                Box(
-                    modifier = Modifier.size(250.dp, 350.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    GarmentStack(shirt)
-                    GarmentStack(tie)
-                    GarmentStack(waistcoat)
-                    if (isJacketVisible) {
-                        GarmentStack(jacket)
-                    }
-                }
-                
-                // Hat to the side
-                Box(modifier = Modifier.size(100.dp), contentAlignment = Alignment.Center) {
-                    GarmentStack(hat)
-                }
+            Box(modifier = Modifier.fillMaxWidth().aspectRatio(0.6f)) {
+                if (isJacketVisible) GarmentStack(jacket)
             }
-            
-            // Lower Body Area
-            Box(
-                modifier = Modifier.size(250.dp, 250.dp),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(modifier = Modifier.size(200.dp, 180.dp)) {
-                        GarmentStack(trousers)
-                    }
-                    Box(modifier = Modifier.size(100.dp, 60.dp)) {
-                        GarmentStack(shoes)
-                    }
-                }
+            Box(modifier = Modifier.fillMaxWidth(0.8f).aspectRatio(1f)) {
+                GarmentStack(shoes)
+            }
+        }
+
+        // Middle Column: Trousers & Hat
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(modifier = Modifier.fillMaxWidth().aspectRatio(0.5f)) {
+                GarmentStack(trousers)
+            }
+            Box(modifier = Modifier.fillMaxWidth(0.7f).aspectRatio(1.2f)) {
+                GarmentStack(hat)
+            }
+        }
+
+        // Right Column: Shirt, Waistcoat, Tie
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(modifier = Modifier.fillMaxWidth().aspectRatio(0.6f)) {
+                GarmentStack(shirt)
+            }
+            Box(modifier = Modifier.fillMaxWidth(0.8f).aspectRatio(1f)) {
+                GarmentStack(waistcoat)
+            }
+            Box(modifier = Modifier.fillMaxWidth(0.6f).aspectRatio(0.8f)) {
+                GarmentStack(tie)
             }
         }
     }
@@ -79,13 +82,16 @@ fun SartorialMannequin(
 private fun GarmentStack(garment: Garment?) {
     if (garment == null) return
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         garment.baseUrl?.let { url ->
             AsyncImage(
                 model = url,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit,
+                // Use FillHeight and CenterStart to effectively "crop" the empty right side 
+                // of the 1024x1024 assets where the garment is pushed to the left.
+                contentScale = ContentScale.FillHeight,
+                alignment = Alignment.CenterStart,
                 colorFilter = ColorFilter.tint(
                     color = parseColor(garment.baseColor), 
                     blendMode = BlendMode.Modulate
@@ -98,7 +104,8 @@ private fun GarmentStack(garment: Garment?) {
                 model = url,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit
+                contentScale = ContentScale.FillHeight,
+                alignment = Alignment.CenterStart
             )
         }
 
@@ -107,7 +114,8 @@ private fun GarmentStack(garment: Garment?) {
                 model = url,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit,
+                contentScale = ContentScale.FillHeight,
+                alignment = Alignment.CenterStart,
                 colorFilter = ColorFilter.tint(Color.White, BlendMode.Multiply)
             )
         }
